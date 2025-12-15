@@ -1,0 +1,98 @@
+"""
+Import all schemas for easy access.
+"""
+from app.schemas.common import (
+    TimestampSchema,
+    PaginationParams,
+    PaginatedResponse,
+    MessageResponse,
+    ErrorResponse
+)
+from app.schemas.organization import (
+    OrganizationBase,
+    OrganizationCreate,
+    OrganizationUpdate,
+    OrganizationResponse,
+    OrganizationStats
+)
+from app.schemas.user import (
+    UserBase,
+    UserCreate,
+    UserUpdate,
+    UserResponse,
+    CurrentUser
+)
+from app.schemas.academic import (
+    AcademicYearBase,
+    AcademicYearCreate,
+    AcademicYearUpdate,
+    AcademicYearResponse,
+    DepartmentBase,
+    DepartmentCreate,
+    DepartmentUpdate,
+    DepartmentResponse,
+    SemesterBase,
+    SemesterCreate,
+    SemesterUpdate,
+    SemesterResponse,
+    SectionBase,
+    SectionCreate,
+    SectionUpdate,
+    SectionResponse,
+    LabGroupBase,
+    LabGroupCreate,
+    LabGroupUpdate,
+    LabGroupResponse
+)
+from app.schemas.student import (
+    StudentBase,
+    StudentCreate,
+    StudentUpdate,
+    StudentResponse,
+    StudentBulkUpload,
+    StudentSectionAssignment
+)
+
+__all__ = [
+    "TimestampSchema",
+    "PaginationParams",
+    "PaginatedResponse",
+    "MessageResponse",
+    "ErrorResponse",
+    "OrganizationBase",
+    "OrganizationCreate",
+    "OrganizationUpdate",
+    "OrganizationResponse",
+    "OrganizationStats",
+    "UserBase",
+    "UserCreate",
+    "UserUpdate",
+    "UserResponse",
+    "CurrentUser",
+    "AcademicYearBase",
+    "AcademicYearCreate",
+    "AcademicYearUpdate",
+    "AcademicYearResponse",
+    "DepartmentBase",
+    "DepartmentCreate",
+    "DepartmentUpdate",
+    "DepartmentResponse",
+    "SemesterBase",
+    "SemesterCreate",
+    "SemesterUpdate",
+    "SemesterResponse",
+    "SectionBase",
+    "SectionCreate",
+    "SectionUpdate",
+    "SectionResponse",
+    "LabGroupBase",
+    "LabGroupCreate",
+    "LabGroupUpdate",
+    "LabGroupResponse",
+    "StudentBase",
+    "StudentCreate",
+    "StudentUpdate",
+    "StudentResponse",
+    "StudentBulkUpload",
+    "StudentSectionAssignment",
+]

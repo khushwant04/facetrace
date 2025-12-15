@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-time Face Recognition - Multi-Face</title>
+
+    <!-- TensorFlow.js and COCO-SSD (YOLO-based) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2.5fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .video-section {
+            position: relative;
+        }
+
+        .video-container {
+            position: relative;
+            background: #000;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        #video {
+            width: 100%;
+            display: block;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        button.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        button.success {
+            background: #10b981;
+            color: white;
+        }
+
+        button.danger {
+            background: #ef4444;
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .info-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .config-card,
+        .status-card,
+        .detection-card {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.3s;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-label {
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .status-value {
+            font-weight: 700;
+        }
+
+        .status-connected {
+            color: #10b981;
+        }
+
+        .status-disconnected {
+            color: #ef4444;
+        }
+
+        .status-loading {
+            color: #f59e0b;
+        }
+
+        .fps-counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .fps-line {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+
+        .detection-result {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border: 2px solid #10b981;
+            margin-bottom: 10px;
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .student-name {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .student-info {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+
+        .info-label {
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .info-value {
+            color: #1e293b;
+            font-weight: 700;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 Real-time Face Recognition System</h1>
+            <p>YOLO-powered instant detection + Server-side identification</p>
+        </div>
+
+        <div class="main-content">
+            <div class="video-section">
+                <div class="video-container">
+                    <video id="video" autoplay playsinline></video>
+                    <canvas id="canvas"></canvas>
+                    <div class="fps-counter" id="fps">
+                        <div class="fps-line">
+                            <span>Detection:</span>
+                            <span id="detectionFps">0 FPS</span>
+                        </div>
+                        <div class="fps-line">
+                            <span>YOLO:</span>
+                            <span id="yoloStatus">Ready ✓</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="primary" onclick="startCamera()" id="cameraBtn">
+                        📹 Start Camera
+                    </button>
+                    <button class="success" onclick="toggleDetection()" id="detectBtn" disabled>
+                        ▶️ Start Detection
+                    </button>
+                    <button class="danger" onclick="stopAll()" id="stopBtn" disabled>
+                        ⏹️ Stop All
+                    </button>
+                </div>
+            </div>
+
+            <div class="info-panel">
+                <div class="config-card">
+                    <div class="card-title">⚙️ Configuration</div>
+                    <div class="input-group">
+                        <label>Organization ID</label>
+                        <input type="text" id="orgId" value="6ffa1332-b2b9-47a6-b032-276a477d77b8">
+                    </div>
+                    <div class="input-group">
+                        <label>YOLO Detection FPS (Local)</label>
+                        <input type="number" id="fps-yolo" value="30" min="10" max="60">
+                    </div>
+                    <div class="input-group">
+                        <label>Server Query Rate (FPS)</label>
+                        <input type="number" id="fps-server" value="3" min="1" max="10">
+                    </div>
+                    <div class="input-group">
+                        <label>YOLO Model</label>
+                        <select id="modelSelect">
+                            <option value="lite">Lite (Fast, ~2s load)</option>
+                            <option value="mobilenet_v2" selected>MobileNet v2 (Balanced)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="status-card">
+                    <div class="card-title">📊 System Status</div>
+                    <div class="status-item">
+                        <span class="status-label">Camera</span>
+                        <span class="status-value" id="cameraStatus">Inactive</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">YOLO Model</span>
+                        <span class="status-value status-connected" id="modelStatus">Loaded ✓</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">WebSocket</span>
+                        <span class="status-value status-disconnected" id="wsStatus">Disconnected</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Detection Status</span>
+                        <span class="status-value" id="detectionStatus">Stopped</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Faces Detected</span>
+                        <span class="status-value" id="facesDetected">3</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Identifications</span>
+                        <span class="status-value" id="totalDetections">0</span>
+                    </div>
+                </div>
+
+                <div class="detection-card">
+                    <div class="card-title">🎯 Detected Faces</div>
+                    <div id="detectionResult">
+                        <p style="text-align: center; color: #94a3b8; padding: 20px 0;">
+                            No detections yet
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let video, canvas, ctx, ws;
+        let cocoModel = null;
+        let isDetecting = false;
+        let yoloDetectionLoop = null;
+        let serverQueryInterval = null;
+        let totalDetections = 0;
+        let detectionFpsCounter = 0;
+        let fpsInterval = null;
+        let captureCanvas, captureCtx;
+        let detectedPersons = [];
+        let identifiedStudents = new Map();
+
+        window.onload = async function () {
+            video = document.getElementById('video');
+            canvas = document.getElementById('canvas');
+            ctx = canvas.getContext('2d');
+
+            captureCanvas = document.createElement('canvas');
+            captureCtx = captureCanvas.getContext('2d');
+
+            fpsInterval = setInterval(() => {
+                document.getElementById('detectionFps').textContent = `${detectionFpsCounter} FPS`;
+                detectionFpsCounter = 0;
+            }, 1000);
+
+            await loadYoloModel();
+        };
+
+        async function loadYoloModel() {
+            try {
+                const modelType = document.getElementById('modelSelect').value;
+                cocoModel = await cocoSsd.load({ base: modelType });
+                console.log('✅ YOLO model loaded!');
+            } catch (error) {
+                console.error('Failed to load YOLO:', error);
+            }
+        }
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    }
+                });
+
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    const rect = video.getBoundingClientRect();
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                };
+
+                document.getElementById('cameraStatus').textContent = 'Active ✓';
+                document.getElementById('cameraStatus').style.color = '#10b981';
+                document.getElementById('detectBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = false;
+                document.getElementById('cameraBtn').disabled = true;
+
+                connectWebSocket();
+
+            } catch (error) {
+                alert('❌ Camera error: ' + error.message);
+            }
+        }
+
+        function connectWebSocket() {
+            const orgId = document.getElementById('orgId').value;
+            const wsUrl = `ws://localhost:8000/ws/rekognition/identify/${orgId}`;
+            console.log('Connecting to WebSocket:', wsUrl);
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = function () {
+                document.getElementById('wsStatus').textContent = 'Connected ✓';
+                document.getElementById('wsStatus').className = 'status-value status-connected';
+                console.log('✅ WebSocket connected');
+            };
+
+            ws.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                handleServerResponse(data);
+                detectionFpsCounter++;
+            };
+
+            ws.onerror = function (error) {
+                console.error('WebSocket error:', error);
+            };
+
+            ws.onclose = function () {
+                document.getElementById('wsStatus').textContent = 'Disconnected ✗';
+                document.getElementById('wsStatus').className = 'status-value status-disconnected';
+            };
+        }
+
+        function toggleDetection() {
+            if (isDetecting) {
+                stopDetection();
+            } else {
+                startDetection();
+            }
+        }
+
+        async function startDetection() {
+            if (!cocoModel) {
+                alert('❌ YOLO model not loaded!');
+                return;
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('❌ WebSocket not connected!');
+                return;
+            }
+
+            isDetecting = true;
+            document.getElementById('detectBtn').innerHTML = '⏸️ Pause Detection';
+            document.getElementById('detectionStatus').textContent = 'Running ✓';
+            document.getElementById('detectionStatus').style.color = '#10b981';
+
+            const yoloFPS = parseInt(document.getElementById('fps-yolo').value) || 30;
+            const serverFPS = parseInt(document.getElementById('fps-server').value) || 3;
+
+            yoloDetectionLoop = setInterval(async () => {
+                await detectWithYolo();
+            }, 1000 / yoloFPS);
+
+            serverQueryInterval = setInterval(() => {
+                sendToServerForIdentification();
+            }, 1000 / serverFPS);
+        }
+
+        function stopDetection() {
+            isDetecting = false;
+
+            if (yoloDetectionLoop) {
+                clearInterval(yoloDetectionLoop);
+                yoloDetectionLoop = null;
+            }
+
+            if (serverQueryInterval) {
+                clearInterval(serverQueryInterval);
+                serverQueryInterval = null;
+            }
+
+            document.getElementById('detectBtn').innerHTML = '▶️ Start Detection';
+            document.getElementById('detectionStatus').textContent = 'Stopped';
+            document.getElementById('detectionStatus').style.color = '#64748b';
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            detectedPersons = [];
+        }
+
+        async function detectWithYolo() {
+            if (!video.videoWidth || !video.videoHeight || !cocoModel) return;
+
+            try {
+                const predictions = await cocoModel.detect(video);
+                detectedPersons = predictions.filter(p => p.class === 'person');
+                document.getElementById('facesDetected').textContent = detectedPersons.length;
+                drawBoundingBoxes();
+            } catch (error) {
+                console.error('YOLO detection error:', error);
+            }
+        }
+
+        function drawBoundingBoxes() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (detectedPersons.length === 0) {
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([10, 5]);
+                ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+                ctx.setLineDash([]);
+
+                ctx.fillStyle = '#f59e0b';
+                ctx.font = 'bold 24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('🔍 Searching for faces...', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            detectedPersons.forEach((person, index) => {
+                const [x, y, width, height] = person.bbox;
+
+                const scaleX = canvas.width / video.videoWidth;
+                const scaleY = canvas.height / video.videoHeight;
+
+                const scaledX = x * scaleX;
+                const scaledY = y * scaleY;
+                const scaledWidth = width * scaleX;
+                const scaledHeight = height * scaleY;
+
+                const studentInfo = findMatchingStudent(index);
+
+                const color = studentInfo ? '#10b981' : '#3b82f6';
+                const label = studentInfo
+                    ? `${studentInfo.name} (${Math.round(studentInfo.similarity * 100)}%)`
+                    : '🔍 Identifying...';
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 4;
+                ctx.strokeRect(scaledX, scaledY, scaledWidth, scaledHeight);
+
+                drawAnimatedCorners(scaledX, scaledY, scaledWidth, scaledHeight, color);
+                drawLabel(scaledX, scaledY, scaledWidth, scaledHeight, label, color);
+            });
+        }
+
+        function drawAnimatedCorners(x, y, width, height, color) {
+            const cornerLength = 25;
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 6;
+
+            const corners = [
+                [[x, y + cornerLength], [x, y], [x + cornerLength, y]],
+                [[x + width - cornerLength, y], [x + width, y], [x + width, y + cornerLength]],
+                [[x, y + height - cornerLength], [x, y + height], [x + cornerLength, y + height]],
+                [[x + width - cornerLength, y + height], [x + width, y + height], [x + width, y + height - cornerLength]]
+            ];
+
+            corners.forEach(corner => {
+                ctx.beginPath();
+                ctx.moveTo(corner[0][0], corner[0][1]);
+                ctx.lineTo(corner[1][0], corner[1][1]);
+                ctx.lineTo(corner[2][0], corner[2][1]);
+                ctx.stroke();
+            });
+        }
+
+        function drawLabel(x, y, width, height, label, color) {
+            const labelHeight = 40;
+            const labelY = y > labelHeight + 10 ? y - labelHeight - 5 : y + height + 5;
+
+            ctx.fillStyle = color === '#10b981'
+                ? 'rgba(16, 185, 129, 0.95)'
+                : 'rgba(59, 130, 246, 0.95)';
+            ctx.fillRect(x, labelY, width, labelHeight);
+
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, x + width / 2, labelY + labelHeight / 2);
+        }
+
+        function sendToServerForIdentification() {
+            if (detectedPersons.length === 0 || !ws || ws.readyState !== WebSocket.OPEN) {
+                return;
+            }
+
+            captureCanvas.width = video.videoWidth;
+            captureCanvas.height = video.videoHeight;
+            captureCtx.drawImage(video, 0, 0);
+
+            const frameData = captureCanvas.toDataURL('image/jpeg', 0.7);
+            const base64Frame = frameData.split(',')[1];
+
+            ws.send(JSON.stringify({
+                frame: base64Frame,
+                timestamp: Date.now()
+            }));
+        }
+
+        function handleServerResponse(data) {
+            if (data.face_count > 0 && data.faces) {
+                totalDetections++;
+                document.getElementById('totalDetections').textContent = totalDetections;
+
+                // Update identification map
+                data.faces.forEach((face, index) => {
+                    if (face.detected) {
+                        identifiedStudents.set(index, {
+                            name: face.student.name,
+                            similarity: face.detection.similarity,
+                            student: face.student,
+                            timestamp: Date.now()
+                        });
+                    }
+                });
+
+                // Clean old entries
+                const now = Date.now();
+                for (let [key, value] of identifiedStudents.entries()) {
+                    if (now - value.timestamp > 3000) {
+                        identifiedStudents.delete(key);
+                    }
+                }
+
+                updateDetectionPanel(data.faces);
+            }
+        }
+
+        function findMatchingStudent(index) {
+            return identifiedStudents.get(index);
+        }
+
+        function updateDetectionPanel(faces) {
+            const detected = faces.filter(f => f.detected);
+
+            if (detected.length === 0) {
+                document.getElementById('detectionResult').innerHTML =
+                    '<p style="text-align: center; color: #94a3b8; padding: 20px 0;">No identifications yet</p>';
+                return;
+            }
+
+            let html = '';
+            detected.forEach(face => {
+                const similarity = Math.round(face.detection.similarity * 100);
+                html += `
+                    <div class="detection-result">
+                        <div class="student-name">${face.student.name}</div>
+                        <div class="student-info">
+                            <div class="info-row">
+                                <span class="info-label">USN:</span>
+                                <span class="info-value">${face.student.usn}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Match:</span>
+                                <span class="info-value">${similarity}%</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Semester:</span>
+                                <span class="info-value">${face.student.semester}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('detectionResult').innerHTML = html;
+        }
+
+        function stopAll() {
+            stopDetection();
+
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+
+            if (ws) {
+                ws.close();
+            }
+
+            document.getElementById('cameraStatus').textContent = 'Inactive';
+            document.getElementById('cameraStatus').style.color = '#64748b';
+            document.getElementById('detectBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = true;
+            document.getElementById('cameraBtn').disabled = false;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            detectedPersons = [];
+            identifiedStudents.clear();
+        }
+
+        window.onbeforeunload = () => {
+            stopAll();
+        };
+    </script>
+</body>
+
+</html>

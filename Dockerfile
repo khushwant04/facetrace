@@ -1,102 +1,55 @@
-# Dockerfile using UV - Fixed for Debian Trixie (Python 3.11-slim)
-# Multi-stage build for optimal image size
+# FaceTrace backend (FastAPI) image.
+#
+# Build from the repository root:
+#   docker build -t facetrace-backend .
+# Run with the backend environment variables (see README):
+#   docker run --env-file backend/.env -p 8000:8000 facetrace-backend
+#
+# Face detection and matching run on AWS Rekognition, so every dependency in
+# backend/requirements.txt ships as a prebuilt wheel: no compilers, OpenCV or
+# dlib system libraries are needed in either stage.
 
-# ==================== Stage 1: Builder ====================
+# ==================== Stage 1: dependencies ====================
 FROM python:3.11-slim AS builder
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.8.22 /uv /usr/local/bin/uv
 
-# Set environment variables
-ENV UV_SYSTEM_PYTHON=1 \
-    UV_COMPILE_BYTECODE=1 \
+ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
 
-WORKDIR /app
+RUN uv venv /opt/venv
 
-# Install system dependencies for face_recognition and OpenCV
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    libopenblas-dev \
-    liblapack-dev \
-    libjpeg-dev \
-    libpng-dev \
-    libtiff-dev \
-    libavcodec-dev \
-    libavformat-dev \
-    libswscale-dev \
-    libavdevice-dev \
-    libv4l-dev \
-    libgtk-3-dev \
-    python3-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
+# Copy only the requirements first so this layer is cached across code changes.
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install --python /opt/venv/bin/python -r /tmp/requirements.txt
 
-# Copy requirements
-COPY backend/requirements.txt .
-
-# Install dependencies with uv (10-100x faster than pip)
-RUN uv pip install --system -r requirements.txt
-
-# ==================== Stage 2: Runtime ====================
+# ==================== Stage 2: runtime ====================
 FROM python:3.11-slim
 
-# Install uv for runtime (optional, for debugging)
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-
-# Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DEBIAN_FRONTEND=noninteractive \
-    UV_SYSTEM_PYTHON=1
+    PATH="/opt/venv/bin:$PATH" \
+    WEB_CONCURRENCY=4
+
+RUN groupadd --system --gid 1000 appuser \
+    && useradd --system --uid 1000 --gid appuser --no-create-home appuser
 
 WORKDIR /app
 
-# Install runtime dependencies only (UPDATED for Debian Trixie)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libopenblas0 \
-    liblapack3 \
-    libjpeg62-turbo \
-    libpng16-16 \
-    libtiff6 \
-    libavcodec61 \
-    libavformat61 \
-    libswscale8 \
-    libavdevice61 \
-    libgtk-3-0 \
-    libgomp1 \
-    curl \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /opt/venv /opt/venv
 
-# Copy Python packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --chown=appuser:appuser backend/app /app/app
+COPY --chown=appuser:appuser backend/alembic /app/alembic
+COPY --chown=appuser:appuser backend/alembic.ini /app/alembic.ini
 
-# Copy application code
-COPY backend/app /app/app
-COPY backend/alembic /app/alembic
-COPY backend/alembic.ini /app/alembic.ini
-
-# Create necessary directories
-RUN mkdir -p /app/logs /app/temp && \
-    chmod 755 /app/logs /app/temp
-
-# Create non-root user for security
-RUN groupadd -r appuser && \
-    useradd -r -g appuser -u 1000 appuser && \
-    chown -R appuser:appuser /app
-
-# Switch to non-root user
 USER appuser
 
-# Expose port
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+# Uses the standard library instead of curl so no extra packages are needed.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD ["python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status == 200 else 1)"]
 
-# Run application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Uvicorn takes its worker count from $WEB_CONCURRENCY (default 4 above).
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

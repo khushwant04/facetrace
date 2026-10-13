@@ -3,6 +3,7 @@
 Comprehensive Test Script for Phases 1-8
 Tests all implemented endpoints to verify functionality.
 """
+import os
 import httpx
 import asyncio
 import sys
@@ -10,8 +11,8 @@ from datetime import datetime
 from uuid import uuid4
 
 # Configuration
-BASE_URL = "http://localhost:8000"
-AUTH0_TOKEN = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjM4RjVVajFtQzdvQ3VCaHlHa3ZHQyJ9.eyJpc3MiOiJodHRwczovL2NzYWkuanAuYXV0aDAuY29tLyIsInN1YiI6Im5QcTVlMkxOVEJ6d21LYWRLVFBEbWI5SFlFaXhOc2tGQGNsaWVudHMiLCJhdWQiOiJodHRwczovL2NzYWkuanAuYXV0aDAuY29tL2FwaS92Mi8iLCJpYXQiOjE3NjE1NzYwNTQsImV4cCI6MTc2MTY2MjQ1NCwic2NvcGUiOiJyZWFkOnVzZXJzIHVwZGF0ZTp1c2VycyBjcmVhdGU6dXNlcnMgcmVhZDp1c2Vyc19hcHBfbWV0YWRhdGEgdXBkYXRlOnVzZXJzX2FwcF9tZXRhZGF0YSByZWFkOnVzZXJfaWRwX3Rva2VucyIsImd0eSI6ImNsaWVudC1jcmVkZW50aWFscyIsImF6cCI6Im5QcTVlMkxOVEJ6d21LYWRLVFBEbWI5SFlFaXhOc2tGIn0.F3YggTxkd0SqRpfwzxdRBxPurk9krDoA12w6A00Q-WODxbnmfwQM6Hp2wRH7Y0CksDL3UEzdm7yTtMMyyt-Prp5gqm9avA5B7bzedkogBb22LX3etpWeo_7IWW3qCcI3oLUEO6JzEm2FSZifwc1xVn4Syv_D93efrGQdBF0V4fuVsvTawnPYcJzNpXDcdR0WlhiVtgIGBGyvsf-KwCC_fgNfl7iTfrijMepWwJHpaqxBmqbtpQxfcEOAw_TZu6C58UYq_51gkkaSRa4-E9MPENqpsWU7If1ZQH6eScfuUPTPIUoxDr2ioiAg8Uq3yD7LyMs8AjuTPY0pQXZvDQJGXQ"
+BASE_URL = os.getenv("FACETRACE_BASE_URL", "http://localhost:8000")
+AUTH0_TOKEN = os.getenv("AUTH0_TOKEN", "")
 
 # Colors for output
 GREEN = '\033[92m'

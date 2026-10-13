@@ -1,0 +1,13 @@
+# Only backend/requirements.txt, backend/app and backend/alembic* are copied into the image.
+.git
+.github
+.vscode
+**/.env
+**/.env.*
+**/__pycache__
+**/*.py[cod]
+.venv
+panel
+scripts
+index.html
+backend/test_*

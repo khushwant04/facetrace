@@ -1,0 +1,31 @@
+# Environment files (keep the *.env.example templates)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Next.js (panel)
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+
+# Local data
+logs/
+temp/
+images/
+
+# OS / editor
+.DS_Store
+.idea/
